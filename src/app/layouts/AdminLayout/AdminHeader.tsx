@@ -1,6 +1,8 @@
-import { Bell, Check, ChevronDown, Menu, Search } from "lucide-react"
+import { useState } from "react"
+import { Bell, Check, ChevronDown, Menu, Search, Settings2 } from "lucide-react"
 
 import { AdminSidebar } from "./AdminSidebar"
+import { AccountSettingsDialog } from "./AccountSettingsDialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,8 +10,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function AdminHeader() {
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-card/90 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <>
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-card/90 px-4 backdrop-blur sm:px-6 lg:px-8">
       <Sheet>
         <SheetTrigger asChild><Button variant="outline" size="icon" className="lg:hidden" aria-label="Open navigation"><Menu className="size-4" /></Button></SheetTrigger>
         <SheetContent side="left" className="w-[280px] border-none bg-sidebar p-0 [&>button]:text-white"><AdminSidebar className="h-full" /></SheetContent>
@@ -31,10 +36,12 @@ export function AdminHeader() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Admin account</DropdownMenuLabel><DropdownMenuSeparator />
             <DropdownMenuItem><Check className="size-4" /> Security verified</DropdownMenuItem>
-            <DropdownMenuItem>Account settings</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setAccountSettingsOpen(true)}><Settings2 className="size-4" /> Account settings</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem>Sign out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+      </header>
+      <AccountSettingsDialog open={accountSettingsOpen} onOpenChange={setAccountSettingsOpen} />
+    </>
   )
 }
