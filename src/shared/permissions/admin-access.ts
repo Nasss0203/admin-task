@@ -1,0 +1,19 @@
+export const SYSTEM_ROLES = {
+	USER: "USER",
+	SYSTEM_ADMIN: "SYSTEM_ADMIN",
+	SUPER_ADMIN: "SUPER_ADMIN",
+} as const;
+
+export type SystemRole = (typeof SYSTEM_ROLES)[keyof typeof SYSTEM_ROLES];
+
+export const ADMIN_PERMISSIONS = {
+	ACCESS_READ: "admin.access.read",
+	USERS_READ: "admin.users.read",
+	USERS_STATUS_UPDATE: "admin.users.status.update",
+	USERS_ROLE_UPDATE: "admin.users.role.update",
+	WORKSPACES_READ: "admin.workspaces.read",
+	DASHBOARD_READ: "admin.dashboard.read",
+} as const;
+
+export type AdminPermission =
+	(typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS];
