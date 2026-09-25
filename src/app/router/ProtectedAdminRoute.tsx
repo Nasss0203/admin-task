@@ -2,12 +2,18 @@ import { LoaderCircle, ShieldAlert } from "lucide-react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { ApiError, tokenStorage } from "@/shared/api";
 import { useAdminAccess } from "@/modules/auth/hooks";
+import { getAuthRouteDecision } from "@/modules/auth/services/auth-route";
+import { useAuthStore } from "@/modules/auth/store/auth-store";
+import { ApiError } from "@/shared/api";
 
 export function ProtectedAdminRoute() {
 	const location = useLocation();
-	const accessToken = tokenStorage.getAccessToken();
+	const { accessToken, isBootstrapped } = useAuthStore();
+	const authRouteDecision = getAuthRouteDecision({
+		accessToken,
+		isBootstrapped,
+	});
 
 	const {
 		data: adminAccess,
@@ -17,7 +23,18 @@ export function ProtectedAdminRoute() {
 		refetch,
 	} = useAdminAccess();
 
-	if (!accessToken) {
+	if (authRouteDecision === "loading") {
+		return (
+			<div className='flex min-h-screen items-center justify-center'>
+				<div className='flex items-center gap-2 text-sm text-muted-foreground'>
+					<LoaderCircle className='size-4 animate-spin' />
+					Verifying administrator access...
+				</div>
+			</div>
+		);
+	}
+
+	if (authRouteDecision === "login") {
 		return (
 			<Navigate to='/login' replace state={{ from: location.pathname }} />
 		);

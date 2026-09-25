@@ -38,15 +38,13 @@ import { BillingStatusBadge } from "./BillingStatusBadge";
 
 const PAGE_SIZE = 20;
 
-const WEBHOOK_EVENT_TYPES = [
-	"checkout.session.completed",
-	"checkout.session.expired",
-	"PAYMENT_GATEWAY_ORDER_PAID",
-	"PAYMENT_GATEWAY_PAYMENT_SUCCESS",
-	"BANK_TRANSACTION",
-] as const;
-
-type EventTypeFilter = "ALL" | (typeof WEBHOOK_EVENT_TYPES)[number];
+type EventTypeFilter =
+	| "ALL"
+	| "checkout.session.completed"
+	| "checkout.session.expired"
+	| "PAYMENT_GATEWAY_ORDER_PAID"
+	| "PAYMENT_GATEWAY_PAYMENT_SUCCESS"
+	| "BANK_TRANSACTION";
 
 function getEventTypeLabel(eventType: string): string {
 	switch (eventType) {

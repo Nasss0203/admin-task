@@ -8,9 +8,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useLogout } from "@/modules/auth/hooks"
+import { useAuthStore } from "@/modules/auth/store/auth-store"
 
 export function AdminHeader() {
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
+  const logoutMutation = useLogout()
+  const { user } = useAuthStore()
+  const displayName = user?.username || user?.email || "Admin"
+  const initials = displayName
+    .split(/\s|@/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
 
   return (
     <>
@@ -28,15 +39,15 @@ export function AdminHeader() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-10 gap-2 px-1.5 sm:px-2">
-              <Avatar className="size-7"><AvatarFallback className="bg-primary text-[11px] font-semibold text-primary-foreground">AN</AvatarFallback></Avatar>
-              <span className="hidden text-left sm:block"><span className="block text-xs font-medium leading-4">Alex Nguyen</span><span className="block text-[10px] text-muted-foreground">Super Admin</span></span>
+              <Avatar className="size-7"><AvatarFallback className="bg-primary text-[11px] font-semibold text-primary-foreground">{initials || "A"}</AvatarFallback></Avatar>
+              <span className="hidden text-left sm:block"><span className="block max-w-40 truncate text-xs font-medium leading-4">{displayName}</span><span className="block text-[10px] text-muted-foreground">Administrator</span></span>
               <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Admin account</DropdownMenuLabel><DropdownMenuSeparator />
             <DropdownMenuItem><Check className="size-4" /> Security verified</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setAccountSettingsOpen(true)}><Settings2 className="size-4" /> Account settings</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setAccountSettingsOpen(true)}><Settings2 className="size-4" /> Account settings</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem disabled={logoutMutation.isPending} onSelect={() => logoutMutation.mutate()}>{logoutMutation.isPending ? "Signing out..." : "Sign out"}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -1,8 +1,17 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
+import axios, {
+	type AxiosInstance,
+	type AxiosRequestConfig,
+	type InternalAxiosRequestConfig,
+} from "axios";
 
-import type { ApiErrorResponse, ApiResponse } from "../types";
+import { authGateway } from "@/modules/auth/api/auth-gateway";
+import { authStore } from "@/modules/auth/store/auth-store";
+
+import type { ApiResponse } from "../types";
+import { API_CONFIG } from "./api-config";
 import { ApiError } from "./api-error";
-import { tokenStorage } from "./token-storage";
+import { normalizeApiError } from "./normalize-api-error";
+import { createSingleFlight } from "./single-flight";
 
 interface ApiRequestConfig extends Omit<
 	AxiosRequestConfig,
@@ -11,79 +20,29 @@ interface ApiRequestConfig extends Omit<
 	auth?: boolean;
 }
 
-const baseURL = import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "");
-
-if (!baseURL) {
-	throw new Error("VITE_API_BASE_URL is not configured");
+interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+	_retry?: boolean;
 }
 
-const publicInstance = axios.create({
-	baseURL,
-	timeout: 10_000,
-	headers: {
-		Accept: "application/json",
-	},
-});
-
-const authenticatedInstance = axios.create({
-	baseURL,
-	timeout: 10_000,
-	headers: {
-		Accept: "application/json",
-	},
-});
+const publicInstance = axios.create(API_CONFIG);
+const authenticatedInstance = axios.create(API_CONFIG);
+const refreshFlight = createSingleFlight<string>();
 
 function normalizePath(path: string): string {
 	return path.startsWith("/") ? path : `/${path}`;
 }
 
-function normalizeAxiosError(error: unknown): ApiError {
-	if (error instanceof ApiError) {
-		return error;
-	}
-
-	if (!axios.isAxiosError(error)) {
-		return new ApiError({
-			statusCode: 0,
-			code: "UNKNOWN_ERROR",
-			message: "An unexpected error occurred",
-		});
-	}
-
-	const statusCode = error.response?.status ?? 0;
-	const rawPayload = error.response?.data as unknown;
-
-	const errorPayload =
-		rawPayload && typeof rawPayload === "object"
-			? (rawPayload as Partial<ApiErrorResponse>)
-			: undefined;
-
-	let message: string | string[];
-
-	if (errorPayload?.message) {
-		message = errorPayload.message;
-	} else if (typeof rawPayload === "string") {
-		message = rawPayload;
-	} else if (statusCode === 0) {
-		message = "Cannot connect to the server";
-	} else {
-		message = error.message || "Request failed";
-	}
-
-	return new ApiError({
-		statusCode: errorPayload?.statusCode ?? statusCode,
-		code:
-			errorPayload?.code ??
-			(statusCode === 0 ? "NETWORK_ERROR" : error.code),
-		message,
-		path: errorPayload?.path,
-		timestamp: errorPayload?.timestamp,
+export function refreshAccessToken(): Promise<string> {
+	return refreshFlight.run(async () => {
+		const response = await authGateway.refresh();
+		authStore.setAccessToken(response.access_token);
+		return response.access_token;
 	});
 }
 
 authenticatedInstance.interceptors.request.use(
 	(config) => {
-		const accessToken = tokenStorage.getAccessToken();
+		const { accessToken } = authStore.getState();
 
 		if (accessToken) {
 			config.headers.set("Authorization", `Bearer ${accessToken}`);
@@ -92,37 +51,46 @@ authenticatedInstance.interceptors.request.use(
 		return config;
 	},
 	(error: unknown) => {
-		return Promise.reject(normalizeAxiosError(error));
+		return Promise.reject(normalizeApiError(error));
 	},
 );
 
-function configureResponseInterceptor(
-	instance: AxiosInstance,
-	clearTokenOnUnauthorized: boolean,
-): void {
+function configurePublicResponseInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.response.use(
 		(response) => response,
-		(error: unknown) => {
-			const apiError = normalizeAxiosError(error);
-
-			if (clearTokenOnUnauthorized && apiError.statusCode === 401) {
-				tokenStorage.removeAccessToken();
-
-				if (
-					typeof window !== "undefined" &&
-					window.location.pathname !== "/login"
-				) {
-					window.location.assign("/login");
-				}
-			}
-
-			return Promise.reject(apiError);
-		},
+		(error: unknown) => Promise.reject(normalizeApiError(error)),
 	);
 }
 
-configureResponseInterceptor(publicInstance, false);
-configureResponseInterceptor(authenticatedInstance, true);
+configurePublicResponseInterceptor(publicInstance);
+
+authenticatedInstance.interceptors.response.use(
+	(response) => response,
+	async (error: unknown) => {
+		const apiError = normalizeApiError(error);
+		const requestConfig = axios.isAxiosError(error)
+			? (error.config as RetryableRequestConfig | undefined)
+			: undefined;
+
+		if (apiError.statusCode !== 401 || !requestConfig || requestConfig._retry) {
+			return Promise.reject(apiError);
+		}
+
+		requestConfig._retry = true;
+
+		try {
+			const accessToken = await refreshAccessToken();
+			requestConfig.headers.set(
+				"Authorization",
+				`Bearer ${accessToken}`,
+			);
+			return await authenticatedInstance.request(requestConfig);
+		} catch (refreshError) {
+			authStore.clear();
+			return Promise.reject(normalizeApiError(refreshError));
+		}
+	},
+);
 
 async function request<T>(
 	method: AxiosRequestConfig["method"],

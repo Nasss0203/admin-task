@@ -1,18 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { tokenStorage } from "../../../shared/api";
-import { authApi } from "../api";
+import { authLifecycle } from "../services/auth-lifecycle";
 import type { LoginRequest } from "../types";
 
 export function useLogin() {
 	const navigate = useNavigate();
 
 	return useMutation({
-		mutationFn: (payload: LoginRequest) => authApi.login(payload),
+		mutationFn: (payload: LoginRequest) => authLifecycle.login(payload),
 
-		onSuccess: (response) => {
-			tokenStorage.setAccessToken(response.access_token);
+		onSuccess: () => {
 			navigate("/", {
 				replace: true,
 			});

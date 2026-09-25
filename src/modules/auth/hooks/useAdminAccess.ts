@@ -1,16 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { ApiError, tokenStorage } from "../../../shared/api";
+import { ApiError } from "../../../shared/api";
 import { adminAccessApi } from "../api";
+import { useAuthStore } from "../store/auth-store";
 import { authQueryKeys } from "./auth-query-keys";
 
 export function useAdminAccess() {
-	const hasAccessToken = tokenStorage.getAccessToken() !== null;
+	const { accessToken, isBootstrapped } = useAuthStore();
 
 	return useQuery({
 		queryKey: authQueryKeys.adminAccess(),
 		queryFn: () => adminAccessApi.getMyAccess(),
-		enabled: hasAccessToken,
+		enabled: isBootstrapped && accessToken !== null,
 		staleTime: 5 * 60 * 1000,
 
 		retry: (failureCount, error) => {
