@@ -10,5 +10,9 @@ export const API_CONFIG = {
 	withCredentials: true,
 	headers: {
 		Accept: "application/json",
+		// Bypass ngrok free-tier browser warning page (ERR_NGROK_6024), which has no CORS headers.
+		...(/\.ngrok(-free)?\.(app|dev|io)$/.test(new URL(baseURL).hostname) && {
+			"ngrok-skip-browser-warning": "true",
+		}),
 	},
 } as const;
